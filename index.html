@@ -613,14 +613,13 @@ return (
 }
 /* ============================== tabs & shell ============================== */
 const TABS = [
-{ id: "dashboard", label: "概況", shortLabel: "概況", sub: "Overview", icon: "gauge" },
 { id: "principles", label: "原則", shortLabel: "原則", sub: "Plan", icon: "book" },
 { id: "trades", label: "記録", shortLabel: "記録", sub: "Do", icon: "penLine" },
 { id: "history", label: "履歴", shortLabel: "履歴", sub: "History", icon: "history" },
 { id: "review", label: "振り返り", shortLabel: "復習", sub: "Check", icon: "clipboard" },
 { id: "improve", label: "改善", shortLabel: "改善", sub: "Act", icon: "sparkles" },
-{ id: "watchlist", label: "銘柄調査", shortLabel: "調査", sub: "Research", icon: "list" },
 { id: "data", label: "データ", shortLabel: "データ", sub: "Data", icon: "download" },
+{ id: "dashboard", label: "概況", shortLabel: "概況", sub: "Overview", icon: "gauge" },
 ];
 function ViewModeToggle({ viewMode, setViewMode, compact }) {
 const opt = (mode, iconName, label) => (
@@ -1727,198 +1726,6 @@ return (
 </div>
 );
 }
-/* ============================== watchlist (Research) ============================== */
-const JUDGMENTS = [
-{ id: "buy", label: "買い候補", color: T.jade },
-{ id: "watch", label: "様子見", color: T.gold },
-{ id: "pass", label: "見送り", color: T.rust },
-];
-const judgmentOf = (id) => JUDGMENTS.find(j => j.id === id) || JUDGMENTS[1];
-const emptyWatch = () => ({
-id: uid(), ticker: "", name: "", judgment: "watch",
-currency: "JPY", targetPrice: "", thesis: "", risk: "", catalyst: "",
-updatedAt: todayStr(),
-});
-function Watchlist({ watchlist, setWatchlist, isMobile }) {
-const [editingId, setEditingId] = useState(null); // id | "new"
-const [draft, setDraft] = useState(emptyWatch());
-const [expandedId, setExpandedId] = useState(null);
-const [dragIndex, setDragIndex] = useState(null);
-const [overIndex, setOverIndex] = useState(null);
-const [filters, setFilters] = useState([]); // empty = show everything
-const startNew = () => { setDraft(emptyWatch()); setEditingId("new"); };
-const startEdit = (w) => { setDraft({ ...w }); setEditingId(w.id); };
-const save = () => {
-if (!draft.ticker.trim() && !draft.name.trim()) return;
-const item = { ...draft, updatedAt: todayStr() };
-if (editingId === "new") setWatchlist([...watchlist, item]);
-else setWatchlist(watchlist.map(w => w.id === editingId ? item : w));
-setEditingId(null);
-};
-const remove = (id) => setWatchlist(watchlist.filter(w => w.id !== id));
-// reordering works on the full list so priority is preserved regardless of filter
-const move = (id, dir) => {
-const idx = watchlist.findIndex(w => w.id === id);
-const to = idx + dir;
-if (idx < 0 || to < 0 || to >= watchlist.length) return;
-const next = [...watchlist];
-[next[idx], next[to]] = [next[to], next[idx]];
-setWatchlist(next);
-};
-const moveTo = (from, to) => {
-if (from === to || from < 0 || to < 0 || from >= watchlist.length || to >= watchlist.length) return;
-const next = [...watchlist];
-const [item] = next.splice(from, 1);
-next.splice(to, 0, item);
-setWatchlist(next);
-};
-const toggleFilter = (id) => setFilters(fs => fs.includes(id) ? fs.filter(x => x !== id) : [...fs, id]);
-const visible = watchlist
-.map((w, idx) => ({ w, idx }))
-.filter(({ w }) => !filters.length || filters.includes(w.judgment));
-// reordering only makes sense when nothing is hidden
-const canReorder = filters.length === 0;
-return (
-<div>
-<Eyebrow>Research — 銘柄を調べ、買う順番を決める</Eyebrow>
-<div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
-<h2 style={{ fontFamily: FONT_DISPLAY, fontSize: 24, fontWeight: 600, letterSpacing: "-0.015em", margin: 0 }}>銘柄調査リスト</h2>
-<Btn onClick={startNew}><Icon name="plus" size={14} />銘柄を追加</Btn>
-</div>
-{editingId && (
-<Panel style={{ padding: 16, marginBottom: 16 }}>
-<div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 10, flexDirection: isMobile ? "column" : "row" }}>
-<Field label="銘柄コード"><input value={draft.ticker} onChange={e => setDraft({ ...draft, ticker: e.target.value })} style={{ ...monoInputStyle, width: isMobile ? "100%" : 100 }} placeholder="7203" /></Field>
-<Field label="銘柄名"><input value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} style={{ ...inputStyle, width: isMobile ? "100%" : 180 }} placeholder="トヨタ自動車" /></Field>
-<Field label="通貨">
-<select value={draft.currency || "JPY"} onChange={e => setDraft({ ...draft, currency: e.target.value })}
-style={{ ...inputStyle, width: isMobile ? "100%" : "auto" }}>
-{CURRENCIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-</select>
-</Field>
-<Field label="想定エントリー価格"><input type="number" inputMode="decimal" value={draft.targetPrice} onChange={e => setDraft({ ...draft, targetPrice: e.target.value })} style={{ ...monoInputStyle, width: isMobile ? "100%" : 130 }} placeholder={(draft.currency === "USD") ? "185.40" : "2500"} /></Field>
-</div>
-<div style={{ marginBottom: 10 }}>
-<div style={{ fontSize: 12.5, color: T.textMuted, marginBottom: 6 }}>投資判断</div>
-<div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-{JUDGMENTS.map(j => <Chip key={j.id} color={j.color} active={draft.judgment === j.id} onClick={() => setDraft({ ...draft, judgment: j.id })}>{j.label}</Chip>)}
-</div>
-</div>
-<div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-<Field label="投資仮説（なぜ上がると考えるか）">
-<textarea rows={2} value={draft.thesis} onChange={e => setDraft({ ...draft, thesis: e.target.value })} style={{ ...inputStyle, resize: "vertical" }} />
-</Field>
-<Field label="リスク・懸念点">
-<textarea rows={2} value={draft.risk} onChange={e => setDraft({ ...draft, risk: e.target.value })} style={{ ...inputStyle, resize: "vertical" }} />
-</Field>
-<Field label="注目材料・エントリー条件">
-<textarea rows={2} value={draft.catalyst} onChange={e => setDraft({ ...draft, catalyst: e.target.value })} style={{ ...inputStyle, resize: "vertical" }} placeholder="例: 次回決算、2500円まで押したら" />
-</Field>
-</div>
-<div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-<Btn onClick={save}><Icon name="check" size={14} />保存</Btn>
-<Btn variant="ghost" onClick={() => setEditingId(null)}>キャンセル</Btn>
-</div>
-</Panel>
-)}
-<div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 6, alignItems: "center" }}>
-<Chip active={!filters.length} onClick={() => setFilters([])}>すべて（{watchlist.length}）</Chip>
-{JUDGMENTS.map(j => (
-<Chip key={j.id} color={j.color} active={filters.includes(j.id)} onClick={() => toggleFilter(j.id)}>
-{j.label}（{watchlist.filter(w => w.judgment === j.id).length}）
-</Chip>
-))}
-</div>
-<div style={{ fontSize: 11, color: T.textFaint, marginBottom: 12 }}>
-投資判断は複数選択できます（例: 買い候補＋様子見）。何も選ばなければ全件表示です。
-</div>
-{!watchlist.length ? (
-<EmptyNote text="まだ銘柄がありません。気になる銘柄を追加して、投資仮説とリスクを書き留めておきましょう。" />
-) : !visible.length ? (
-<EmptyNote text="この判断の銘柄はありません。" />
-) : (
-<>
-<div style={{ fontSize: 11.5, color: T.textFaint, marginBottom: 8, lineHeight: 1.8 }}>
-{canReorder
-? "上から順に買いの優先順位です。ドラッグ、または ↑↓ ボタンで並べ替えられます。"
-: "並べ替えは「すべて」表示のときに行えます。"}
-</div>
-<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-{visible.map(({ w, idx }) => {
-const j = judgmentOf(w.judgment);
-const isOpen = expandedId === w.id;
-const isDragging = dragIndex === idx;
-const isOver = overIndex === idx && dragIndex !== null && dragIndex !== idx;
-return (
-<Panel
-key={w.id}
-draggable={canReorder}
-onDragStart={canReorder ? (() => setDragIndex(idx)) : undefined}
-onDragOver={canReorder ? ((e) => { e.preventDefault(); setOverIndex(idx); }) : undefined}
-onDrop={canReorder ? ((e) => { e.preventDefault(); moveTo(dragIndex, idx); setDragIndex(null); setOverIndex(null); }) : undefined}
-onDragEnd={canReorder ? (() => { setDragIndex(null); setOverIndex(null); }) : undefined}
-style={{
-padding: 0, overflow: "hidden", borderLeft: `3px solid ${j.color}`,
-opacity: isDragging ? 0.4 : 1,
-borderTop: isOver ? `2px solid ${T.text}` : undefined,
-}}
->
-<div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", flexWrap: "wrap" }}>
-{canReorder && (
-<div style={{ display: "flex", alignItems: "center", gap: 2, color: T.textFaint, cursor: "grab" }}>
-<Icon name="grip" size={14} />
-<span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 600, color: T.text, minWidth: 18, textAlign: "right" }}>{idx + 1}</span>
-</div>
-)}
-<div onClick={() => setExpandedId(isOpen ? null : w.id)} style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", flex: 1, cursor: "pointer", minWidth: 140 }}>
-<span style={{ fontFamily: FONT_MONO, fontWeight: 600, fontSize: 13.5 }}>{w.ticker}</span>
-{isUSD(w) && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 4, border: `1px solid ${T.hairline}`, color: T.textMuted }}>US</span>}
-<span style={{ fontSize: 14 }}>{w.name}</span>
-<span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, border: `1px solid ${j.color}`, color: j.color, whiteSpace: "nowrap" }}>{j.label}</span>
-{w.targetPrice && <span style={{ fontSize: 11, color: T.textFaint, fontFamily: FONT_MONO, whiteSpace: "nowrap" }}>想定 {fmtMoney(Number(w.targetPrice), currencyOf(w))}</span>}
-</div>
-<div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-{canReorder && (
-<>
-<button onClick={() => move(w.id, -1)} disabled={idx === 0} title="上へ"
-style={{ background: "none", border: `1px solid ${T.hairline}`, borderRadius: 6, padding: 5, cursor: idx === 0 ? "not-allowed" : "pointer", color: T.textMuted, opacity: idx === 0 ? 0.35 : 1 }}>
-<Icon name="arrowUp" size={13} />
-</button>
-<button onClick={() => move(w.id, 1)} disabled={idx === watchlist.length - 1} title="下へ"
-style={{ background: "none", border: `1px solid ${T.hairline}`, borderRadius: 6, padding: 5, cursor: idx === watchlist.length - 1 ? "not-allowed" : "pointer", color: T.textMuted, opacity: idx === watchlist.length - 1 ? 0.35 : 1 }}>
-<Icon name="arrowDown" size={13} />
-</button>
-</>
-)}
-<button onClick={() => startEdit(w)} style={{ background: "none", border: `1px solid ${T.hairline}`, borderRadius: 6, padding: 5, cursor: "pointer", color: T.textMuted }}>
-<Icon name="pencil" size={13} />
-</button>
-<button onClick={() => remove(w.id)} style={{ background: "none", border: `1px solid ${T.hairline}`, borderRadius: 6, padding: 5, cursor: "pointer", color: T.rust }}>
-<Icon name="trash" size={13} />
-</button>
-<button onClick={() => setExpandedId(isOpen ? null : w.id)} style={{ background: "none", border: "none", padding: 5, cursor: "pointer", color: T.textFaint }}>
-<Icon name="chevronDown" size={15} style={{ transform: isOpen ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
-</button>
-</div>
-</div>
-{isOpen && (
-<div style={{ padding: "12px 14px 16px 14px", borderTop: `1px solid ${T.hairlineSoft}`, display: "flex", flexDirection: "column", gap: 10 }}>
-{w.thesis && <ReviewBlock label="投資仮説" text={w.thesis} />}
-{w.risk && <ReviewBlock label="リスク・懸念点" text={w.risk} />}
-{w.catalyst && <ReviewBlock label="注目材料・エントリー条件" text={w.catalyst} />}
-{!w.thesis && !w.risk && !w.catalyst && <div style={{ fontSize: 12.5, color: T.textFaint }}>詳細が未記入です。鉛筆アイコンから追記できます。</div>}
-<div style={{ fontSize: 11, color: T.textFaint, fontFamily: FONT_MONO }}>最終更新 {w.updatedAt}</div>
-</div>
-)}
-</Panel>
-);
-})}
-</div>
-</>
-)}
-</div>
-);
-}
 /* ============================== demo data (preview) ============================== */
 /* Generates a year of plausible history so the charts and analytics can be
 previewed before real data accumulates. Deterministic: same output every time. */
@@ -2085,13 +1892,7 @@ const notes = [
 { id: "dn4", date: "2026-02-20", text: "焦り(FOMO)タグが付いたトレードは勝率が明確に低い。タグが付いたら一度手を止める" },
 { id: "dn5", date: "2025-12-08", text: "利確が早すぎる傾向。目標株価まで分割で伸ばす方針に変更" },
 ];
-const watchlist = [
-{ id: "dw1", ticker: "6501", name: "日立製作所", judgment: "buy", targetPrice: "3800", thesis: "社会インフラとITの構成比改善で利益率が上昇トレンド。中期計画の進捗も良好", risk: "海外案件の為替影響、受注のブレ", catalyst: "次回決算、3800円まで押したら打診", updatedAt: "2026-08-22" },
-{ id: "dw2", ticker: "4063", name: "信越化学", judgment: "buy", targetPrice: "5400", thesis: "半導体材料の需給改善。シェアが高く価格決定力がある", risk: "半導体サイクルの反転", catalyst: "25日線まで押すのを待つ", updatedAt: "2026-08-20" },
-{ id: "dw3", ticker: "7974", name: "任天堂", judgment: "watch", targetPrice: "7800", thesis: "新ハードの立ち上がり次第では大きく伸びる余地", risk: "ソフト次第で業績が大きく振れる", catalyst: "次回の新作発表", updatedAt: "2026-08-18" },
-{ id: "dw4", ticker: "9432", name: "NTT", judgment: "watch", targetPrice: "148", thesis: "配当利回りと安定性。ディフェンシブ枠として", risk: "成長性に乏しく上値が重い", catalyst: "調整局面での押し目", updatedAt: "2026-08-14" },
-{ id: "dw5", ticker: "9984", name: "ソフトバンクG", judgment: "pass", targetPrice: "", thesis: "AI関連の保有資産の再評価期待", risk: "値動きが荒く、自分のリスク許容度を超える。原則3に反する", catalyst: "—", updatedAt: "2026-08-10" },
-];
+
 const settings = {
 capital: "3000000",
 capitalStart: "2025-09-01",
@@ -2100,7 +1901,8 @@ cashFlows: [
 { id: "cf2", date: "2026-05-20", amount: "-400000", note: "一部出金" },
 ],
 };
-return { principles, trades, notes, watchlist, settings };
+
+return { principles, trades, notes, settings };
 }
 /* ============================== cloud sync (Supabase REST) ============================== */
 /* One row holds the whole workspace. We talk to PostgREST directly with fetch so
@@ -2560,50 +2362,6 @@ active: (o["有効"] || "有効").trim() !== "無効",
 createdAt: (o["作成日"] || "").trim() || todayStr(),
 })).filter(p => p.title);
 }
-/* ---------- watchlist <-> CSV ---------- */
-const WATCH_HEADERS = ["id", "優先順位", "銘柄コード", "銘柄名", "通貨", "投資判断", "想定エントリー価格", "投資仮説", "リスク・懸念点", "注目材料・エントリー条件", "最終更新"];
-const WJ_TO_JA = { buy: "買い候補", watch: "様子見", pass: "見送り" };
-const JA_TO_WJ = { "買い候補": "buy", "様子見": "watch", "見送り": "pass" };
-function watchlistToCSV(watchlist) {
-return toCSV(WATCH_HEADERS, watchlist.map((w, i) => ({
-"id": w.id, "優先順位": i + 1,
-"銘柄コード": w.ticker, "銘柄名": w.name,
-"通貨": currencyOf(w),
-"投資判断": WJ_TO_JA[w.judgment] || w.judgment,
-"想定エントリー価格": w.targetPrice,
-"投資仮説": w.thesis, "リスク・懸念点": w.risk,
-"注目材料・エントリー条件": w.catalyst,
-"最終更新": w.updatedAt,
-})));
-}
-function csvToWatchlist(text) {
-const objs = rowsToObjects(parseCSV(text)).map(o => ({
-id: (o["id"] || "").trim() || uid(),
-order: Number(o["優先順位"]) || Number.MAX_SAFE_INTEGER,
-ticker: (o["銘柄コード"] || "").trim(),
-name: (o["銘柄名"] || "").trim(),
-currency: (o["通貨"] || "").trim().toUpperCase() === "USD" ? "USD" : "JPY",
-judgment: JA_TO_WJ[(o["投資判断"] || "").trim()] || "watch",
-targetPrice: (o["想定エントリー価格"] || "").trim(),
-thesis: o["投資仮説"] || "",
-risk: o["リスク・懸念点"] || "",
-catalyst: o["注目材料・エントリー条件"] || "",
-updatedAt: (o["最終更新"] || "").trim() || todayStr(),
-})).filter(w => w.ticker || w.name);
-// honour the recorded priority column, then drop it
-objs.sort((a, b) => a.order - b.order);
-return objs.map(({ order, ...rest }) => rest);
-}
-function watchTemplateCSV() {
-return toCSV(WATCH_HEADERS, [
-{ "id": "", "優先順位": "1", "銘柄コード": "7203", "銘柄名": "トヨタ自動車", "通貨": "JPY", "投資判断": "買い候補",
-"想定エントリー価格": "2500", "投資仮説": "円安メリットと販売台数の回復",
-"リスク・懸念点": "為替の急変、米国関税", "注目材料・エントリー条件": "次回決算、2500円まで押したら", "最終更新": "2026-08-01" },
-{ "id": "", "優先順位": "2", "銘柄コード": "6758", "銘柄名": "ソニーG", "通貨": "JPY", "投資判断": "様子見",
-"想定エントリー価格": "3000", "投資仮説": "ゲーム事業の利益率改善",
-"リスク・懸念点": "競合の値下げ", "注目材料・エントリー条件": "上場来高値を明確に抜けたら", "最終更新": "2026-08-01" },
-]);
-}
 /* Shows roughly how much of the browser's ~5MB store is in use. */
 function StorageMeter() {
 const [bytes, setBytes] = useState(null);
@@ -2643,7 +2401,7 @@ return (
 );
 }
 /* ============================== data tab ============================== */
-function DataManager({ trades, principles, notes, watchlist, setTrades, setPrinciples, setNotes, setWatchlist, setSettings,
+function DataManager({ trades, principles, notes, setTrades, setPrinciples, setNotes, setSettings,
 syncCfg, setSyncCfg, syncStatus, lastSyncedAt, onPullNow, onPushNow }) {
 const [msg, setMsg] = useState(null); // {type:'ok'|'err', text}
 const [pendingImport, setPendingImport] = useState(null); // {kind, items}
@@ -2654,7 +2412,6 @@ const exportTargets = [
 { has: trades.length, name: `trades_${stamp()}.csv`, build: () => tradesToCSV(trades, principles) },
 { has: principles.length, name: `principles_${stamp()}.csv`, build: () => principlesToCSV(principles) },
 { has: notes.length, name: `notes_${stamp()}.csv`, build: () => toCSV(["日付", "改善メモ"], notes.map(n => ({ "日付": n.date, "改善メモ": n.text }))) },
-{ has: watchlist.length, name: `watchlist_${stamp()}.csv`, build: () => watchlistToCSV(watchlist) },
 ];
 const fileCount = exportTargets.filter(t => t.has).length;
 const hasAnyData = fileCount > 0;
@@ -2669,18 +2426,6 @@ const reader = new FileReader();
 reader.onload = () => onText(String(reader.result));
 reader.onerror = () => notify("err", "ファイルの読み込みに失敗しました。");
 reader.readAsText(file, "UTF-8");
-};
-const handleWatchFile = (e) => {
-const file = e.target.files?.[0];
-e.target.value = "";
-if (!file) return;
-readFile(file, (text) => {
-try {
-const items = csvToWatchlist(text);
-if (!items.length) return notify("err", "有効な銘柄行が見つかりませんでした。書式をご確認ください。");
-setPendingImport({ kind: "watchlist", items });
-} catch (err) { notify("err", "CSVの解析に失敗しました。"); }
-});
 };
 const handleTradeFile = (e) => {
 const file = e.target.files?.[0];
@@ -2714,12 +2459,6 @@ else {
 const existing = new Set(trades.map(t => t.id));
 setTrades([...items.filter(t => !existing.has(t.id)), ...trades]);
 }
-} else if (kind === "watchlist") {
-if (mode === "replace") setWatchlist(items);
-else {
-const existing = new Set(watchlist.map(w => w.id));
-setWatchlist([...watchlist, ...items.filter(w => !existing.has(w.id))]);
-}
 } else {
 if (mode === "replace") setPrinciples(items);
 else {
@@ -2751,7 +2490,7 @@ color: msg.type === "ok" ? T.jade : T.rust,
 <Panel style={{ padding: 16, marginBottom: 16, borderColor: T.text }}>
 <Eyebrow>読み込み方法を選択</Eyebrow>
 <div style={{ fontSize: 13.5, marginBottom: 12, lineHeight: 1.8 }}>
-{pendingImport.kind === "trades" ? "トレード" : pendingImport.kind === "watchlist" ? "調査銘柄" : "原則"}を <b>{pendingImport.items.length}件</b> 検出しました。どのように読み込みますか？
+{pendingImport.kind === "trades" ? "トレード" : "原則"}を <b>{pendingImport.items.length}件</b> 検出しました。どのように読み込みますか？
 </div>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 <Btn onClick={() => applyImport("merge")}><Icon name="plus" size={14} />追加（既存を残す）</Btn>
@@ -2796,9 +2535,6 @@ notify("ok", "改善メモを書き出しました。");
 }} disabled={!notes.length}>
 改善メモ（{notes.length}件）
 </Btn>
-<Btn variant="ghost" onClick={() => { downloadFile(`watchlist_${stamp()}.csv`, watchlistToCSV(watchlist)); notify("ok", "銘柄調査リストを書き出しました。"); }} disabled={!watchlist.length}>
-銘柄調査（{watchlist.length}件）
-</Btn>
 </div>
 </Panel>
 <Panel style={{ padding: 16, marginBottom: 14 }}>
@@ -2832,9 +2568,6 @@ notify("ok", "改善メモを書き出しました。");
 <Btn variant="ghost" onClick={() => { downloadFile("template_trades.csv", tradeTemplateCSV()); notify("ok", "トレードテンプレートを書き出しました。"); }}>
 トレードテンプレート
 </Btn>
-<Btn variant="ghost" onClick={() => { downloadFile("template_watchlist.csv", watchTemplateCSV()); notify("ok", "銘柄調査テンプレートを書き出しました。"); }}>
-銘柄調査テンプレート
-</Btn>
 </div>
 </div>
 </Panel>
@@ -2855,7 +2588,7 @@ notify("ok", "改善メモを書き出しました。");
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 <Btn variant="danger" onClick={() => {
 const d = makeDemoData();
-setPrinciples(d.principles); setTrades(d.trades); setNotes(d.notes); setWatchlist(d.watchlist);
+setPrinciples(d.principles); setTrades(d.trades); setNotes(d.notes);
 if (setSettings && d.settings) setSettings(d.settings);
 setConfirmAction(null);
 notify("ok", "デモデータを読み込みました。各タブで表示を確認できます。");
@@ -2870,7 +2603,7 @@ notify("ok", "デモデータを読み込みました。各タブで表示を確
 </div>
 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
 <Btn variant="danger" onClick={() => {
-setPrinciples([]); setTrades([]); setNotes([]); setWatchlist([]);
+setPrinciples([]); setTrades([]); setNotes([]);
 setConfirmAction(null);
 notify("ok", "すべてのデータを削除しました。");
 }}>すべて削除する</Btn>
@@ -2901,7 +2634,6 @@ const [tab, setTab] = useState("dashboard");
 const [principles, setPrinciples] = useState([]);
 const [trades, setTrades] = useState([]);
 const [notes, setNotes] = useState([]);
-const [watchlist, setWatchlist] = useState([]);
 const [settings, setSettings] = useState({ capital: "" });
 // --- cloud sync state ---
 const [syncCfg, setSyncCfg] = useState(null);
@@ -2917,18 +2649,16 @@ const [viewMode, setViewModeState] = useState(() => (window.innerWidth < 720 ? "
 useEffect(() => {
 (async () => {
 try {
-const [p, t, n, v, wl, st] = await Promise.all([
+const [p, t, n, v, st] = await Promise.all([
 window.storage.get("principles").catch(() => null),
 window.storage.get("trades").catch(() => null),
 window.storage.get("improvement-notes").catch(() => null),
 window.storage.get("ui-view-mode").catch(() => null),
-window.storage.get("watchlist").catch(() => null),
 window.storage.get("settings").catch(() => null),
 ]);
 setPrinciples(p ? JSON.parse(p.value) : []);
 setTrades(t ? JSON.parse(t.value) : []);
 setNotes(n ? JSON.parse(n.value) : []);
-setWatchlist(wl ? JSON.parse(wl.value) : []);
 setSettings(st ? JSON.parse(st.value) : { capital: "" });
 if (v && (v.value === "mobile" || v.value === "desktop")) setViewModeState(v.value);
 setSyncCfg(loadSyncConfig());
@@ -2950,7 +2680,6 @@ setErr("保存に失敗しました。ブラウザのプライベートモード
 const updatePrinciples = (next) => { setPrinciples(next); persist("principles", next); };
 const updateTrades = (next) => { setTrades(next); persist("trades", next); };
 const updateNotes = (next) => { setNotes(next); persist("improvement-notes", next); };
-const updateWatchlist = (next) => { setWatchlist(next); persist("watchlist", next); };
 const updateSettings = (next) => { setSettings(next); persist("settings", next); };
 const setViewMode = (mode) => { setViewModeState(mode); window.storage.set("ui-view-mode", mode).catch(() => {}); };
 const isMobile = viewMode === "mobile";
@@ -2961,12 +2690,10 @@ const p = payload || {};
 setPrinciples(p.principles || []);
 setTrades(p.trades || []);
 setNotes(p.notes || []);
-setWatchlist(p.watchlist || []);
 if (p.settings) setSettings(p.settings);
 persist("principles", p.principles || []);
 persist("trades", p.trades || []);
 persist("improvement-notes", p.notes || []);
-persist("watchlist", p.watchlist || []);
 if (p.settings) persist("settings", p.settings);
 }, [persist]);
 const pullNow = useCallback(async (cfg = syncCfg, quiet = false) => {
@@ -2991,7 +2718,7 @@ const pushNow = useCallback(async (opts = {}) => {
 if (!syncCfg) return;
 setSyncStatus("pushing");
 try {
-const payload = { principles, trades, notes, watchlist, settings };
+const payload = { principles, trades, notes, settings };
 const res = await syncPush(syncCfg, payload, opts.force ? undefined : syncRev);
 if (res.conflict) {
 setConflict({ remote: res.remote, payload });
@@ -3005,7 +2732,7 @@ setSyncStatus("synced");
 setSyncStatus("error");
 setErr(`同期の保存に失敗しました: ${e.message}`);
 }
-}, [syncCfg, syncRev, principles, trades, notes, watchlist, settings]);
+}, [syncCfg, syncRev, principles, trades, notes, settings]);
 // pull once when sync is configured (and when the tab regains focus)
 useEffect(() => {
 if (!loaded || !syncCfg) return;
@@ -3021,7 +2748,7 @@ if (skipNextPush.current) { skipNextPush.current = false; return; }
 if (pushTimer.current) clearTimeout(pushTimer.current);
 pushTimer.current = setTimeout(() => { pushNow(); }, 1500);
 return () => { if (pushTimer.current) clearTimeout(pushTimer.current); };
-}, [principles, trades, notes, watchlist, settings, loaded, syncCfg]);
+}, [principles, trades, notes, settings, loaded, syncCfg]);
 const resolveConflict = async (mode) => {
 if (mode === "remote") {
 const c = conflict; setConflict(null);
@@ -3062,11 +2789,10 @@ const content = (
 {tab === "history" && <TradeHistory trades={trades} principles={principles} />}
 {tab === "review" && <Review trades={trades} setTrades={updateTrades} principles={principles} />}
 {tab === "improve" && <Improve trades={trades} principles={principles} notes={notes} setNotes={updateNotes} />}
-{tab === "watchlist" && <Watchlist watchlist={watchlist} setWatchlist={updateWatchlist} isMobile={isMobile} />}
 {tab === "data" && (
 <DataManager
-trades={trades} principles={principles} notes={notes} watchlist={watchlist}
-setTrades={updateTrades} setPrinciples={updatePrinciples} setNotes={updateNotes} setWatchlist={updateWatchlist} setSettings={updateSettings}
+trades={trades} principles={principles} notes={notes}
+setTrades={updateTrades} setPrinciples={updatePrinciples} setNotes={updateNotes} setSettings={updateSettings}
 syncCfg={syncCfg} setSyncCfg={setSyncCfg} syncStatus={syncStatus} lastSyncedAt={lastSyncedAt}
 onPullNow={() => pullNow()} onPushNow={() => pushNow()}
 />
